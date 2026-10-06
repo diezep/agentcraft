@@ -1,0 +1,14 @@
+name: agentcraft_native_server
+publish_to: none
+resolution: workspace
+environment:
+  sdk: ^3.5.0
+dependencies:
+  dart_mod_common:
+    path: ../../../../redstone_dart/packages/dart_mod_common
+  dart_mod_server:
+    path: ../../../../redstone_dart/packages/dart_mod_server
+  minecraft_mcp:
+    path: ../../../../redstone_dart/packages/minecraft_mcp
+dev_dependencies:
+  test: ^1.25.0

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "agentcraft_native",
+  "version": "${version}",
+  "name": "Agentcraft Native",
+  "description": "Minecraft-native AgentCraft workshop",
+  "authors": ["Diego Zepeda"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/agentcraft_native/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "com.redstone.DartModLoader"
+    ],
+    "client": [
+      "com.redstone.DartModClientLoader"
+    ]
+  },
+  "mixins": [
+    "agentcraft_native.mixins.json",
+    "java_mc_bridge.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

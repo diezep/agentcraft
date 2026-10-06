@@ -1,0 +1,6 @@
+name: agentcraft_native
+minecraft_version: "1.21.11"
+packages:
+  server: packages/server
+entry_points:
+  server: packages/server/lib/main.dart
