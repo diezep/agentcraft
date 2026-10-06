@@ -1,5 +1,7 @@
 # AgentCraft Native (Redstone.Dart prototype)
 
+For the independent Dart backend and new Prism instance, see [Dart edition](../foreman_dart/README.md). This page describes the earlier prototype.
+
 A small single-player Minecraft-native frontend for the existing AgentCraft Foreman/Codex backend.
 The mod logic is Dart; Minecraft renders the actual villager, lectern book, chat,
 blocks and redstone lamps. There is no Flutter screen or separate dashboard.

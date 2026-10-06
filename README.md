@@ -1,3 +1,5 @@
+> **Dart edition:** Our Redstone-based Minecraft app and independent Dart/Codex backend are documented in [foreman_dart](foreman_dart/README.md).
+
 <div align="center">
 
 # AgentCraft

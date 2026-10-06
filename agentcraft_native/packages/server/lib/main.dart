@@ -8,11 +8,24 @@ import 'package:dart_mod_server/dart_mod_server.dart';
 import 'foreman.dart';
 import 'package:minecraft_mcp/runtime.dart';
 
+int foremanPort() {
+  final environment =
+      int.tryParse(Platform.environment['AGENTCRAFT_PORT'] ?? '');
+  if (environment != null) return environment;
+  final config = File('config/agentcraft_native.json');
+  if (!config.existsSync()) return 7878;
+  final data = jsonDecode(config.readAsStringSync()) as Map<String, dynamic>;
+  final port = data['port'];
+  if (port is! int || port < 1 || port > 65535) {
+    throw const FormatException('Invalid Foreman port');
+  }
+  return port;
+}
+
 final state = WorkshopState();
 final notices = <String>[];
-final connection = ForemanConnection(state,
-    onNotice: notices.add,
-    port: int.tryParse(Platform.environment['AGENTCRAFT_PORT'] ?? '') ?? 7878);
+final connection =
+    ForemanConnection(state, onNotice: notices.add, port: foremanPort());
 final decisionTokens = <int, String>{};
 int nextToken = 1;
 bool workshop = false;
@@ -87,6 +100,51 @@ void main() {
         connection.send(
             state.reply(id, c.requireArgument<String>('reply')), 'Reply');
         c.source.sendMessage('Reply sent. Waiting for confirmation.');
+      } on StateError catch (e) {
+        c.source.sendMessage(e.message.toString());
+      }
+      return 1;
+    });
+    Commands.register('craftagent', permission: 2, arguments: [
+      const CommandArgument('agent', ArgumentType.string),
+      const CommandArgument('action', ArgumentType.string),
+    ], execute: (c) {
+      try {
+        connection.send({
+          'type': 'agent.action',
+          'agentId': c.requireArgument<String>('agent'),
+          'action': c.requireArgument<String>('action')
+        }, 'Agent control');
+      } on StateError catch (e) {
+        c.source.sendMessage(e.message.toString());
+      }
+      return 1;
+    });
+    Commands.register('crafttask', permission: 2, arguments: [
+      const CommandArgument('task', ArgumentType.string),
+      const CommandArgument('action', ArgumentType.string),
+    ], execute: (c) {
+      try {
+        connection.send({
+          'type': 'task.action',
+          'taskId': c.requireArgument<String>('task'),
+          'action': c.requireArgument<String>('action')
+        }, 'Task control');
+      } on StateError catch (e) {
+        c.source.sendMessage(e.message.toString());
+      }
+      return 1;
+    });
+    Commands.register('craftmessage', permission: 2, arguments: [
+      const CommandArgument('agent', ArgumentType.string),
+      const CommandArgument('message', ArgumentType.greedyString),
+    ], execute: (c) {
+      try {
+        connection.send({
+          'type': 'user.message',
+          'to': c.requireArgument<String>('agent'),
+          'text': c.requireArgument<String>('message')
+        }, 'Message');
       } on StateError catch (e) {
         c.source.sendMessage(e.message.toString());
       }
