@@ -3,7 +3,7 @@
 	"id": "agentcraft",
 	"version": "${version}",
 	"name": "AgentCraft",
-	"description": "Minecraft as a spatial UI for real multi-agent Claude work.",
+	"description": "Minecraft as a spatial UI for real multi-agent Claude and Codex work.",
 	"authors": [
 		"Blendi"
 	],

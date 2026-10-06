@@ -12,7 +12,7 @@ export const FOREMAN_VERSION = '0.1.0';
 /** Repo root of the AgentCraft project (foreman/src/config.ts -> ../..). */
 export const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-export interface ClaudeConfig {
+export interface TeamConfig {
   leadModel: string;
   workerModel: string;
   effort: EffortLevel;
@@ -31,11 +31,14 @@ export interface ClaudeConfig {
   resumeOnStart: boolean;
   /** lead reviews each finished task before the merge decision reaches the user */
   leadReview: boolean;
-  /**
-   * Use the local `claude` CLI's claude.ai login instead of an API key / cloud provider. Personal use
-   * only: Anthropic does not allow third-party tools to offer claude.ai login (see agents/claude/auth.ts).
-   */
+}
+
+export interface ClaudeConfig extends TeamConfig {
+  /** Opt into the local Claude CLI login (personal use). */
   useClaudeLogin: boolean;
+}
+export interface CodexConfig extends TeamConfig {
+  command: string;
 }
 
 export type ShowcaseCheckpoint = 'showcase' | 'showcase-late';
@@ -80,6 +83,7 @@ export interface Config {
   /** sign approved merge commits when the repo's own git config says commit.gpgsign=true */
   signMerges: boolean;
   claude: ClaudeConfig;
+  codex: CodexConfig;
   sim: SimConfig;
 }
 
@@ -152,7 +156,7 @@ export const KNOWN_FLAGS = new Set([
   'toast-silent', 'debug', 'quiet', 'allow-browser-origins', 'repo-poll-ms', 'merge-style', 'sign-merges',
   'lead-model', 'worker-model', 'effort', 'lead-effort', 'max-turns', 'max-turns-lead', 'max-turns-worker',
   'max-concurrent', 'ci', 'max-budget', 'resume', 'lead-review', 'speed', 'seed', 'showcase', 'auto-answer',
-  'ambient',
+  'ambient', 'codex-command',
 ]);
 
 /**
@@ -174,11 +178,12 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
   const home = path.resolve(str(flags.home) ?? env.AGENTCRAFT_HOME ?? path.join(os.homedir(), '.agentcraft'));
   const file = readJson<Record<string, unknown>>(path.join(home, 'config.json')) ?? {};
   const fileClaude = (file.claude ?? {}) as Record<string, unknown>;
+  const fileCodex = (file.codex ?? {}) as Record<string, unknown>;
   const fileSim = (file.sim ?? {}) as Record<string, unknown>;
   const pick = (k: string, envKey?: string): unknown => flags[k] ?? (envKey ? env[envKey] : undefined) ?? file[k];
 
   const backendRaw = String(pick('backend', 'AGENTCRAFT_BACKEND') ?? 'claude');
-  if (backendRaw !== 'sim' && backendRaw !== 'claude') throw new Error(`unknown backend "${backendRaw}" (use sim or claude)`);
+  if (backendRaw !== 'sim' && backendRaw !== 'claude' && backendRaw !== 'codex') throw new Error(`unknown backend "${backendRaw}" (use sim, claude or codex)`);
   const backend = backendRaw as BackendName;
   const profile = str(pick('profile', 'AGENTCRAFT_PROFILE')) ?? backend;
   if (!/^[a-zA-Z0-9_-]+$/.test(profile)) throw new Error(`bad profile name "${profile}"`);
@@ -188,7 +193,8 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
   if (typeof repoFlag === 'string') repos.push(...repoFlag.split(',').map((s) => s.trim()).filter(Boolean));
   else if (Array.isArray(file.repos)) repos.push(...(file.repos as string[]));
 
-  const workersRaw = str(flags.workers) ?? env.AGENTCRAFT_WORKERS ?? (fileClaude.workers as string[] | string | undefined);
+  const fileTeam = backend === 'codex' ? fileCodex : fileClaude;
+  const workersRaw = str(flags.workers) ?? env.AGENTCRAFT_WORKERS ?? (fileTeam.workers as string[] | string | undefined);
   const workers = Array.isArray(workersRaw)
     ? workersRaw
     : typeof workersRaw === 'string'
@@ -210,7 +216,7 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
     goal: str(flags.goal),
     autostart: bool(flags.autostart, false) || !!str(flags.goal),
     reset: bool(flags.reset, false),
-    notify: bool(pick('notify', 'AGENTCRAFT_NOTIFY'), backend === 'claude'),
+    notify: bool(pick('notify', 'AGENTCRAFT_NOTIFY'), backend !== 'sim'),
     toastSilent: bool(pick('toast-silent', 'AGENTCRAFT_TOAST_SILENT'), false),
     debug: bool(pick('debug', 'AGENTCRAFT_DEBUG'), false),
     quiet: bool(flags.quiet, false),
@@ -219,7 +225,7 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
     repoPollMs: Math.max(500, num(pick('repo-poll-ms'), 10_000)),
     mergeStyle: mergeStyle(pick('merge-style', 'AGENTCRAFT_MERGE_STYLE')),
     // the sim answers merges unattended (screenshot QA, --auto-answer): never sign there
-    signMerges: bool(pick('sign-merges', 'AGENTCRAFT_SIGN_MERGES'), backend === 'claude'),
+    signMerges: bool(pick('sign-merges', 'AGENTCRAFT_SIGN_MERGES'), backend !== 'sim'),
     claude: {
       leadModel: str(flags['lead-model']) ?? model ?? str(env.AGENTCRAFT_LEAD_MODEL) ?? str(fileClaude.leadModel) ?? 'opus',
       workerModel: str(flags['worker-model']) ?? model ?? str(env.AGENTCRAFT_WORKER_MODEL) ?? str(fileClaude.workerModel) ?? 'sonnet',
@@ -235,6 +241,21 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
       leadReview: bool(flags['lead-review'] ?? fileClaude.leadReview, true),
       useClaudeLogin: bool(flags['use-claude-login'] ?? env.AGENTCRAFT_USE_CLAUDE_LOGIN ?? fileClaude.useClaudeLogin, false),
     },
+    codex: {
+      leadModel: str(flags['lead-model']) ?? model ?? str(env.AGENTCRAFT_LEAD_MODEL) ?? str(fileCodex.leadModel) ?? 'default',
+      workerModel: str(flags['worker-model']) ?? model ?? str(env.AGENTCRAFT_WORKER_MODEL) ?? str(fileCodex.workerModel) ?? 'default',
+      effort: effort(flags.effort ?? fileCodex.effort, 'medium'),
+      leadEffort: effort(flags['lead-effort'] ?? flags.effort ?? fileCodex.leadEffort, 'medium'),
+      maxTurnsLead: num(flags['max-turns-lead'] ?? flags['max-turns'] ?? fileCodex.maxTurnsLead, 40),
+      maxTurnsWorker: num(flags['max-turns-worker'] ?? flags['max-turns'] ?? fileCodex.maxTurnsWorker, 80),
+      maxConcurrent: Math.max(1, num(flags['max-concurrent'] ?? fileCodex.maxConcurrent, 3)),
+      workers,
+      ciCommand: str(flags.ci) ?? str(fileCodex.ciCommand),
+      maxBudgetUsdPerTurn: flags['max-budget'] !== undefined ? num(flags['max-budget'], 0) || undefined : (fileCodex.maxBudgetUsdPerTurn as number | undefined),
+      resumeOnStart: bool(flags.resume ?? fileCodex.resumeOnStart, true),
+      leadReview: bool(flags['lead-review'] ?? fileCodex.leadReview, true),
+      command: str(flags['codex-command']) ?? str(env.AGENTCRAFT_CODEX_COMMAND) ?? str(fileCodex.command) ?? 'codex',
+    },
     sim: {
       speed: Math.max(0.05, num(flags.speed ?? env.AGENTCRAFT_SIM_SPEED ?? fileSim.speed, 1)),
       seed: num(flags.seed ?? fileSim.seed, 7),
@@ -244,6 +265,11 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
       ambient: bool(flags.ambient ?? fileSim.ambient, true),
     },
   };
+  if (backend === 'codex') {
+    if (flags['max-budget'] !== undefined || cfg.codex.maxBudgetUsdPerTurn !== undefined) throw new Error('--max-budget is only supported by Claude; Codex uses your ChatGPT allowance');
+    if (cfg.codex.effort === 'max' || cfg.codex.leadEffort === 'max') throw new Error('Codex effort supports low, medium, high or xhigh');
+    if (flags['use-claude-login']) throw new Error('--use-claude-login cannot be used with Codex; run codex login instead');
+  }
   if (cfg.sim.showcase) cfg.autostart = true;
   return cfg;
 }
@@ -252,7 +278,7 @@ export const HELP = `AgentCraft Foreman ${FOREMAN_VERSION}
 
 usage: npm run start -- [options]
 
-  --backend sim|claude     agent backend (default: claude)
+  --backend sim|claude|codex     agent backend (default: claude)
   --repo <path>[,<path>]   register local git repo(s) at start (sim: defaults to a fresh sandbox/sim-demo)
   --goal "<text>"          submit a goal right away
   --port <n>               WebSocket port (default 7878, env AGENTCRAFT_PORT)
@@ -261,14 +287,22 @@ usage: npm run start -- [options]
                            env AGENTCRAFT_USER_NAME, config.json "userName")
   --profile <name>         state profile under home (default: backend name)
   --reset                  wipe this profile's state first (sim: also recreates the demo repo)
-  --notify / --no-notify   desktop notification when a decision waits (default: on for claude, off for sim)
+  --notify / --no-notify   desktop notification when a decision waits (default: on for real agents, off for sim)
   --toast-silent           toasts without sound
   --repo-poll-ms <n>       how often repo checkouts are checked for head/dirty changes (default 10000)
   --merge-style merge|squash  approved merges: merge commit keeping the agents' commits (default),
                            or one squashed commit authored by you
   --no-sign-merges         never sign approved merge commits (default: signed when your git
-                           config has commit.gpgsign=true; claude backend only)
+                           config has commit.gpgsign=true; real backends only)
   --debug                  verbose logging
+
+ codex backend
+  auth: run \`codex login\` and choose Sign in with ChatGPT (API-key accounts are rejected)
+  --codex-command <path>   Codex CLI executable (default: codex, env AGENTCRAFT_CODEX_COMMAND)
+  --model <m>              model for both roles (default: Codex's configured model)
+  --effort low|medium|high|xhigh
+  Team/CI/resume flags below also apply. --max-turns caps completed model messages.
+  --max-budget is not supported. All agents share your ChatGPT Codex allowance.
 
  sim backend
   --speed <x>              speed multiplier (default 1)

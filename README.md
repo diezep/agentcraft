@@ -2,9 +2,9 @@
 
 # AgentCraft
 
-**A team of Claude agents doing real work on your code, inside a Minecraft studio you can walk around in.**
+**A team of Claude or Codex agents doing real work on your code, inside a Minecraft studio you can walk around in.**
 
-*Powered by Claude*
+*Powered by Claude or Codex*
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-c9a227)](LICENSE)
 [![Minecraft 26.3](https://img.shields.io/badge/Minecraft-26.3-8fa98b)](https://www.minecraft.net)
@@ -217,6 +217,18 @@ the first time; in an older world, rebuild it with `/agentcraft hq`.
 `~/.agentcraft/config.json`.
 
 <br>
+
+## Use your ChatGPT subscription with Codex
+
+This fork adds a `codex` backend using Codex App Server and your local **Sign in with ChatGPT** login. Run `codex login`, then on macOS:
+
+```sh
+node tools/mac.mjs launch --backend codex --repo /path/to/your/repo --foreman-arg --workers --foreman-arg 1
+```
+
+All agents share your Codex allowance. API-key accounts are rejected by this backend; the default model comes from your Codex configuration. In-game tasks, questions, approvals, reviews, and manual merges use the existing team workflow.
+
+See [Codex setup and Prism Launcher installation](docs/CODEX.md) for prerequisites, configuration, behavior, and building a Minecraft 26.3 mod JAR.
 
 ## Controls
 

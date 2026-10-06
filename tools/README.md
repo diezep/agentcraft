@@ -106,3 +106,7 @@ Screenshot QA (scene format, anchor contract, judging): [docs/QA.md](../docs/QA.
 | `record.mjs`, `shots/*.json` | real-time shot player for screen recording (`dev.play`: camera paths, timed Foreman injections, typing); format in `shots/README.md` |
 | `qa.mjs`, `lib/contactsheet.mjs`, `scenes/qa.json` | QA suite, contact sheet (pngjs) |
 | `scenes/phase1.json`, `scenes/qa-selftest.json` | Phase 1 proof scene, runner self-test |
+
+## Codex backend
+
+Both launchers accept `codex` as a backend. Run `codex login` first and choose **Sign in with ChatGPT**. See [Codex and Prism Launcher setup](../docs/CODEX.md). For Prism on macOS, `node tools/mac.mjs launch --backend codex --no-game --repo /path/to/repo` starts only the Foreman.

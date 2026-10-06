@@ -23,6 +23,14 @@ Minecraft is closed, and survives restarts.
                       sim:    src/agents/sim/     (deterministic scripted team, real git)
 ```
 
+## Codex / ChatGPT subscription
+
+The `codex` backend runs through your installed Codex CLI with **Sign in with ChatGPT**. It shares the scheduler, worktree/CI/review flow, and player-approved merges with Claude. See [Codex setup](../docs/CODEX.md) for account setup, model and team configuration, sandbox/approval behavior, and Prism Launcher installation.
+
+```sh
+npm run start -- --backend codex --repo /path/to/repo --workers 1
+```
+
 ## Run it
 
 ```sh
